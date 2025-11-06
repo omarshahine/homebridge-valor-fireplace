@@ -38,10 +38,22 @@ export class FireplacePlatformAccessory {
       this.fireplace,
       this.isLocked()
     );
+    
     this.subscribeFireplace();
     this.subscribeService();
     // Initialize characteristics AFTER handlers are set up to avoid validation errors
     this.service.initCharacteristics();
+    
+    // Store reference for cleanup
+    accessory.context.fireplaceAccessory = this;
+    
+    // Start network operations after everything is set up
+    this.fireplace.startNetworking();
+  }
+
+  public cleanup(): void {
+    this.platform.log.debug('Cleaning up platform accessory');
+    this.fireplace.cleanup();
   }
 
   private isLocked(): boolean {
@@ -144,15 +156,14 @@ export class FireplacePlatformAccessory {
   private getStatus(): FireplaceStatus {
     if (!this.fireplace.reachable()) {
       this.platform.log.debug("Device not connected!");
-      throw new this.platform.api.hap.HapStatusError(
-        this.platform.api.hap.HAPStatus.SERVICE_COMMUNICATION_FAILURE
-      );
+      // Return a default status instead of throwing error for child bridge compatibility
+      return new FireplaceStatus('');
     }
     const status = this.fireplace.status();
     if (!status) {
-      throw new this.platform.api.hap.HapStatusError(
-        this.platform.api.hap.HAPStatus.RESOURCE_BUSY
-      );
+      this.platform.log.debug("Status not yet available");
+      // Return a default status instead of throwing error for child bridge compatibility
+      return new FireplaceStatus('');
     }
     return status!;
   }

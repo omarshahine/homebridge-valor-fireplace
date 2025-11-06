@@ -14,6 +14,8 @@ export interface IFireplaceController extends EventEmitter {
   getFlameHeight(): FlameHeight;
   reachable(): boolean;
   setTemperature(temperature: number): void;
+  startNetworking(): void;
+  cleanup(): void;
 }
 
 export interface IFireplaceEvents {
@@ -40,7 +42,7 @@ export class FireplaceController extends EventEmitter implements IFireplaceContr
     public readonly accessory: PlatformAccessory) {
     super();
     this.config = this.accessory.context.device;
-    this.startStatusSubscription();
+    // Don't start status subscription in constructor - will be started externally after platform is ready
   }
 
   private startStatusSubscription(): void {
@@ -290,5 +292,15 @@ export class FireplaceController extends EventEmitter implements IFireplaceContr
     }
     this.startStatusSubscription();
     return succeeds;
+  }
+
+  public startNetworking(): void {
+    this.log.debug('Starting network operations');
+    this.startStatusSubscription();
+  }
+
+  public cleanup(): void {
+    this.log.debug('Cleaning up fireplace controller');
+    this.stopStatusSubscription();
   }
 }

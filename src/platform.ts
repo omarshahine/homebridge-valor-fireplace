@@ -36,6 +36,21 @@ export class MertikPlatform implements DynamicPlatformPlugin {
       log.debug("Executed didFinishLaunching callback");
       this.configureDevices();
     });
+
+    this.api.on("shutdown", () => {
+      log.debug("Homebridge is shutting down, cleaning up accessories");
+      this.cleanupAccessories();
+    });
+  }
+
+  private cleanupAccessories() {
+    // Clean up any accessories that might have network connections
+    for (const accessory of this.accessories) {
+      const fireplaceAccessory = accessory.context.fireplaceAccessory;
+      if (fireplaceAccessory && typeof fireplaceAccessory.cleanup === 'function') {
+        fireplaceAccessory.cleanup();
+      }
+    }
   }
 
   configureAccessory(accessory: PlatformAccessory) {
@@ -46,6 +61,9 @@ export class MertikPlatform implements DynamicPlatformPlugin {
   configureDevices() {
     const configuredDevices: IDeviceConfig[] =
       this.config["fireplaces"] ?? new Array<IDeviceConfig>();
+    
+    this.log.debug(`Configuring ${configuredDevices.length} fireplace(s)`);
+    
     const devicesMap = configuredDevices.reduce(
       (a, x) => ({ ...a, [x.name]: x.ip }),
       {}
@@ -83,7 +101,9 @@ export class MertikPlatform implements DynamicPlatformPlugin {
 
     // Delete previously configured devices that don't exist anymore
     for (const existingAccessory of this.accessories) {
-      if (!devicesMap[existingAccessory.context.device.name]) {
+      // Safely check if the accessory has a valid device configuration
+      const deviceName = existingAccessory.context?.device?.name;
+      if (deviceName && !devicesMap[deviceName]) {
         this.log.debug("Removing unconfigured fireplace");
         this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [
           existingAccessory,
