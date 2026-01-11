@@ -73,12 +73,11 @@ export class ServiceController implements IServiceController {
       "Connected"
     );
 
-    // Configure target heater cooler state to support HEAT (Temperature/Manual) and COOL (Eco)
-    // Removed AUTO to avoid confusing "68-68" display
+    // Configure target heater cooler state to only support HEAT
+    // This is a heater-only device (fireplace)
     this.targetHeaterCoolerStateCharacteristic().setProps({
       validValues: [
         this.platform.Characteristic.TargetHeaterCoolerState.HEAT,
-        this.platform.Characteristic.TargetHeaterCoolerState.COOL,
       ],
     });
 

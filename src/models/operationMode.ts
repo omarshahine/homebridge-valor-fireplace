@@ -31,8 +31,6 @@ export class OperationModeUtils {
         state = platform.Characteristic.CurrentHeaterCoolerState.IDLE;
         break;
       case OperationMode.Eco:
-        state = platform.Characteristic.CurrentHeaterCoolerState.COOLING;
-        break;
       case OperationMode.Manual:
         state = platform.Characteristic.CurrentHeaterCoolerState.HEATING;
         break;
@@ -49,28 +47,17 @@ export class OperationModeUtils {
     platform: ValorPlatform,
     mode: OperationMode
   ): CharacteristicValue {
-    switch (mode) {
-      case OperationMode.Manual:
-        return platform.Characteristic.TargetHeaterCoolerState.HEAT;
-      case OperationMode.Temperature:
-        return platform.Characteristic.TargetHeaterCoolerState.HEAT; // Show as HEAT instead of AUTO
-      case OperationMode.Eco:
-        return platform.Characteristic.TargetHeaterCoolerState.COOL;
-      default:
-        return platform.Characteristic.TargetHeaterCoolerState.HEAT;
-    }
+    // All modes map to HEAT since this is a heater-only device
+    return platform.Characteristic.TargetHeaterCoolerState.HEAT;
   }
 
   public static ofHeaterCoolerState(
     platform: ValorPlatform,
     value: CharacteristicValue
   ): OperationMode {
-    if (value === platform.Characteristic.TargetHeaterCoolerState.AUTO) {
+    // HEAT is the only supported mode - always use Temperature mode
+    if (value === platform.Characteristic.TargetHeaterCoolerState.HEAT) {
       return OperationMode.Temperature;
-    } else if (value === platform.Characteristic.TargetHeaterCoolerState.COOL) {
-      return OperationMode.Eco;
-    } else if (value === platform.Characteristic.TargetHeaterCoolerState.HEAT) {
-      return OperationMode.Temperature; // Use Temperature mode, not Manual
     } else {
       return OperationMode.Off;
     }
