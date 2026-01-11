@@ -2,12 +2,12 @@
 
 ## Project Overview
 
-This is a Homebridge plugin that enables HomeKit control of Valor fireplaces with WiFi controllers. It was forked from the [homebridge-mertik-fireplace](https://github.com/tritter/homebridge-mertik-fireplace) plugin by @tritter and adapted for Valor fireplaces.
+This is a Homebridge plugin that enables HomeKit control of Valor fireplaces with WiFi controllers.
 
 **Package Name:** `homebridge-valor-fireplace`
 **Repository:** `https://github.com/omarshahine/homebridge-valor-fireplace`
 **Author:** Omar Shahine
-**License:** Apache-2.0
+**License:** MIT
 
 ## Technical Architecture
 
@@ -110,32 +110,14 @@ To be "Verified by Homebridge":
 - Submit to the [Homebridge Verified Plugins](https://github.com/homebridge/homebridge/wiki/Verified-Plugins) wiki
 - Requires community review and approval
 
-## Rebranding Checklist (Mertik → Valor)
-
-All instances of "Mertik" branding have been updated to "Valor":
-
-- [x] `package.json`: displayName, name, description, repository, bugs URLs
-- [x] `src/settings.ts`: PLATFORM_NAME, PLUGIN_NAME
-- [x] `src/platform.ts`: Class name `ValorPlatform`
-- [x] `src/index.ts`: Import and registration
-- [x] `src/platformAccessory.ts`: Platform type references
-- [x] `src/controllers/serviceController.ts`: Manufacturer characteristic set to "Valor"
-- [x] `src/models/*.ts`: Platform type references
-- [x] `config.schema.json`: pluginAlias and help URLs
-- [x] `README.md`: All documentation and badges
-- [x] `DEPLOYMENT.md`: Installation commands
-
 ## Device Compatibility
 
-This plugin works with Valor fireplaces that use WiFi controllers compatible with the Mertik protocol, including models with the B6R-WME controller module.
-
-## Original Attribution
-
-This plugin is based on [homebridge-mertik-fireplace](https://github.com/tritter/homebridge-mertik-fireplace) by [@tritter](https://github.com/tritter). Protocol implementation assistance from [@erdebee's homey-mertik-wifi](https://github.com/erdebee/homey-mertik-wifi).
+- **Tested with:** Valor Linear L1 fireplace
+- **WiFi Hardware:** [GV60 WiFi Module](https://www.valorfireplaces.com/media/Remote/GV60WIFI-Upgrade-Instructions.pdf)
+- **Compatible Fireplaces:** Must support the [Valor10 Remote App](https://www.valorfireplaces.com/features/valor10-remote-app.php)
 
 ## Legal
 
 *Valor* is a registered trademark of Valor Fireplaces.
-*Mertik* is a registered trademark of Maxitrol GmbH & Co. KG.
 
-This project is not affiliated with, authorized, maintained, sponsored, or endorsed by Valor Fireplaces or Maxitrol.
+This project is not affiliated with, authorized, maintained, sponsored, or endorsed by Valor Fireplaces or any of its affiliates or subsidiaries.

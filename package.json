@@ -3,7 +3,7 @@
   "name": "homebridge-valor-fireplace",
   "version": "2.0.0",
   "description": "Controls Valor Fireplace WiFi controllers, connecting real fire with Homebridge.",
-  "license": "Apache-2.0",
+  "license": "MIT",
   "author": {
     "name": "Omar Shahine",
     "url": "https://github.com/omarshahine"

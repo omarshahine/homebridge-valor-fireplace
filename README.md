@@ -72,7 +72,9 @@ Add the following to your Homebridge `config.json`:
 
 ## Requirements
 
-- Valor fireplace with WiFi controller (B6R-WME or compatible)
+- **Tested with:** Valor Linear L1 fireplace
+- **WiFi Hardware:** [GV60 WiFi Module](https://www.valorfireplaces.com/media/Remote/GV60WIFI-Upgrade-Instructions.pdf) installed in your fireplace
+- **Valor10 Remote App:** Your fireplace must be compatible with the [Valor10 Remote App](https://www.valorfireplaces.com/features/valor10-remote-app.php) - see link for list of compatible fireplaces
 - Static IP address assigned to the fireplace controller
 - Homebridge 1.3.5 or later
 - Node.js 14.18.1 or later
@@ -81,16 +83,8 @@ Add the following to your Homebridge `config.json`:
 
 *Valor* is a registered trademark of Valor Fireplaces.
 
-*Mertik* is a registered trademark of Maxitrol GmbH & Co. KG.
-
-This project is not affiliated with, authorized, maintained, sponsored, or endorsed by Valor Fireplaces, Maxitrol, or any of their affiliates or subsidiaries.
-
-## Credits
-
-This plugin is based on [homebridge-mertik-fireplace](https://github.com/tritter/homebridge-mertik-fireplace) by [@tritter](https://github.com/tritter).
-
-Protocol implementation assistance from [@erdebee's homey-mertik-wifi](https://github.com/erdebee/homey-mertik-wifi).
+This project is not affiliated with, authorized, maintained, sponsored, or endorsed by Valor Fireplaces or any of its affiliates or subsidiaries.
 
 ## License
 
-Apache-2.0
+MIT
