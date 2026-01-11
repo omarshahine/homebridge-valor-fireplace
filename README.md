@@ -5,6 +5,10 @@
 
 [Homebridge](https://github.com/homebridge/homebridge) plugin for controlling Valor fireplaces with WiFi controllers through Apple HomeKit.
 
+<p align="center">
+  <img src="images/homekit-screenshot.png" alt="HomeKit Screenshot" width="300">
+</p>
+
 ## Features
 
 Control your Valor fireplace using Siri and schedule automations with HomeKit scenes. The plugin exposes a Heater accessory with the following features:
@@ -60,6 +64,8 @@ Add the following to your Homebridge `config.json`:
 | Key | Required | Description |
 |-----|----------|-------------|
 | `platform` | Yes | Must be `"ValorFireplace"` |
+| `debug` | No | Enable debug mode to log all status updates (default: false) |
+| `temperatureUnit` | No | Temperature unit for logs: `"C"` for Celsius, `"F"` for Fahrenheit (default: `"C"`) |
 | `fireplaces` | Yes | Array of fireplace configurations |
 | `name` | Yes | Display name for the fireplace (also used as serial number) |
 | `ip` | Yes | Static IP address of the fireplace WiFi controller |
