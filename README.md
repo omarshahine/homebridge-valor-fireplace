@@ -6,7 +6,7 @@
 [Homebridge](https://github.com/homebridge/homebridge) plugin for controlling Valor fireplaces with WiFi controllers through Apple HomeKit.
 
 <p align="center">
-  <img src="images/homekit-screenshot.png" alt="HomeKit Screenshot" width="300">
+  <img src="https://raw.githubusercontent.com/omarshahine/homebridge-valor-fireplace/master/images/homekit-screenshot.png" alt="HomeKit Screenshot" width="300">
 </p>
 
 ## Features
