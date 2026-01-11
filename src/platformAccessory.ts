@@ -26,6 +26,7 @@ export class FireplacePlatformAccessory {
   private readonly fireplace: IFireplaceController;
   private readonly request: IRequestController;
   private readonly service: IServiceController;
+  private lastStatusString: string | undefined;
 
   constructor(
     private readonly platform: ValorPlatform,
@@ -53,7 +54,19 @@ export class FireplacePlatformAccessory {
 
   subscribeFireplace() {
     this.fireplace.on("status", (status) => {
-      this.platform.log.info(`Received status - ${status}`);
+      const statusString = status.toString();
+      const statusChanged = this.lastStatusString !== statusString;
+
+      // Log on first status, on changes, or if debug mode is enabled
+      if (!this.lastStatusString) {
+        this.platform.log.info(`Initial status - ${status}`);
+      } else if (statusChanged) {
+        this.platform.log.info(`Status changed - ${status}`);
+      } else if (this.platform.debugMode) {
+        this.platform.log.debug(`Status update - ${status}`);
+      }
+
+      this.lastStatusString = statusString;
       this.updateActive(status);
       if (!status.igniting && !status.shutdown) {
         this.updateCurrentHeatingCoolerState(status);

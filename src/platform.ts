@@ -25,12 +25,19 @@ export class ValorPlatform implements DynamicPlatformPlugin {
   // this is used to track restored cached accessories
   public readonly accessories: PlatformAccessory[] = [];
 
+  // Debug mode - logs all status updates instead of just changes
+  public readonly debugMode: boolean;
+
   constructor(
     public readonly log: Logger,
     public readonly config: PlatformConfig,
     public readonly api: API
   ) {
+    this.debugMode = this.config.debug === true;
     this.log.debug("Finished initializing platform:", this.config.name);
+    if (this.debugMode) {
+      this.log.info("Debug mode enabled - all status updates will be logged");
+    }
 
     this.api.on("didFinishLaunching", () => {
       log.debug("Executed didFinishLaunching callback");

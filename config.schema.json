@@ -4,23 +4,34 @@
   "singular": true,
   "headerDisplay": "Fireplaces are exposed as separate accessories. Each fireplace needs a static IP address configured on your network.",
   "schema": {
-    "fireplaces": {
-      "type": "array",
-      "items": {
-        "title": "Fireplace",
-        "type": "object",
-        "properties": {
-          "name": {
-            "title": "Name of the fireplace",
-            "type": "string",
-            "placeholder": "Fireplace"
-          },
-          "ip": {
-            "title": "IP of the device (should be static)",
-            "type": "string",
-            "placeholder": "192.168.x.x",
-            "required": true,
-            "description": "See: https://github.com/omarshahine/homebridge-valor-fireplace"
+    "type": "object",
+    "properties": {
+      "debug": {
+        "title": "Debug Mode",
+        "type": "boolean",
+        "default": false,
+        "description": "Enable to log all status updates. When disabled, only logs status changes."
+      },
+      "fireplaces": {
+        "title": "Fireplaces",
+        "type": "array",
+        "items": {
+          "title": "Fireplace",
+          "type": "object",
+          "properties": {
+            "name": {
+              "title": "Name",
+              "type": "string",
+              "placeholder": "Fireplace",
+              "required": true
+            },
+            "ip": {
+              "title": "IP Address",
+              "type": "string",
+              "placeholder": "192.168.x.x",
+              "required": true,
+              "description": "Static IP address of the fireplace WiFi controller"
+            }
           }
         }
       }
