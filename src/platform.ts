@@ -17,7 +17,7 @@ import { IDeviceConfig } from "./models/deviceConfig";
  * This class is the main constructor for your plugin, this is where you should
  * parse the user config and discover/register accessories with Homebridge.
  */
-export class MertikPlatform implements DynamicPlatformPlugin {
+export class ValorPlatform implements DynamicPlatformPlugin {
   public readonly Service: typeof Service = this.api.hap.Service;
   public readonly Characteristic: typeof Characteristic =
     this.api.hap.Characteristic;

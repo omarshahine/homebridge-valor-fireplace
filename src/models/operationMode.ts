@@ -1,5 +1,5 @@
 import { CharacteristicValue } from "homebridge";
-import { MertikPlatform } from "../platform";
+import { ValorPlatform } from "../platform";
 
 export enum OperationMode {
   Off = 1,
@@ -21,7 +21,7 @@ export class OperationModeUtils {
   }
 
   public static toHeatingCoolerState(
-    platform: MertikPlatform,
+    platform: ValorPlatform,
     mode: OperationMode,
     guardFlameOn: boolean
   ): CharacteristicValue {
@@ -46,7 +46,7 @@ export class OperationModeUtils {
   }
 
   public static toTargetHeaterCoolerState(
-    platform: MertikPlatform,
+    platform: ValorPlatform,
     mode: OperationMode
   ): CharacteristicValue {
     switch (mode) {
@@ -62,7 +62,7 @@ export class OperationModeUtils {
   }
 
   public static ofHeaterCoolerState(
-    platform: MertikPlatform,
+    platform: ValorPlatform,
     value: CharacteristicValue
   ): OperationMode {
     if (value === platform.Characteristic.TargetHeaterCoolerState.AUTO) {
@@ -77,7 +77,7 @@ export class OperationModeUtils {
   }
 
   public static toActive(
-    platform: MertikPlatform,
+    platform: ValorPlatform,
     mode: OperationMode,
     igniting: boolean,
     shuttingDown: boolean
@@ -88,7 +88,7 @@ export class OperationModeUtils {
   }
 
   public static ofActive(
-    platform: MertikPlatform,
+    platform: ValorPlatform,
     value: CharacteristicValue,
     heatingCoolerStateValue: CharacteristicValue
   ): OperationMode {

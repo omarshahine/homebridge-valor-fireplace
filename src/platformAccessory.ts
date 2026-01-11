@@ -15,7 +15,7 @@ import { AuxModeUtils } from "./models/auxMode";
 import { FireplaceStatus } from "./models/fireplaceStatus";
 import { FlameHeight, FlameHeightUtils } from "./models/flameHeight";
 import { OperationMode, OperationModeUtils } from "./models/operationMode";
-import { MertikPlatform } from "./platform";
+import { ValorPlatform } from "./platform";
 
 /**
  * Platform Accessory
@@ -28,7 +28,7 @@ export class FireplacePlatformAccessory {
   private readonly service: IServiceController;
 
   constructor(
-    private readonly platform: MertikPlatform,
+    private readonly platform: ValorPlatform,
     accessory: PlatformAccessory
   ) {
     this.fireplace = new FireplaceController(platform.log, accessory);

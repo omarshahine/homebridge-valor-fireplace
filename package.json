@@ -1,16 +1,21 @@
 {
-  "displayName": "Mertik Fireplace",
-  "name": "homebridge-mertik-fireplace",
-  "version": "1.6.2",
-  "description": "Controls Mertik Fireplace Wifi controllers, connecting real fire with Homebridge.",
+  "displayName": "Valor Fireplace",
+  "name": "homebridge-valor-fireplace",
+  "version": "2.0.0",
+  "description": "Controls Valor Fireplace WiFi controllers, connecting real fire with Homebridge.",
   "license": "Apache-2.0",
+  "author": {
+    "name": "Omar Shahine",
+    "url": "https://github.com/omarshahine"
+  },
   "repository": {
     "type": "git",
-    "url": "git://github.com/tritter/homebridge-mertik-fireplace.git"
+    "url": "git://github.com/omarshahine/homebridge-valor-fireplace.git"
   },
   "bugs": {
-    "url": "https://github.com/tritter/homebridge-mertik-fireplace/issues"
+    "url": "https://github.com/omarshahine/homebridge-valor-fireplace/issues"
   },
+  "homepage": "https://github.com/omarshahine/homebridge-valor-fireplace#readme",
   "engines": {
     "node": ">=14.18.1",
     "homebridge": ">=1.3.5"

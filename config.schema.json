@@ -1,8 +1,8 @@
 {
-  "pluginAlias": "MertikFireplace",
+  "pluginAlias": "ValorFireplace",
   "pluginType": "platform",
   "singular": true,
-  "headerDisplay": "Fireplaces are exposed as separate accessories, each fireplace needs to be configured correctly, with a static ip.",
+  "headerDisplay": "Fireplaces are exposed as separate accessories. Each fireplace needs a static IP address configured on your network.",
   "schema": {
     "fireplaces": {
       "type": "array",
@@ -16,11 +16,11 @@
             "placeholder": "Fireplace"
           },
           "ip": {
-            "title": "IP of the devices, should be static",
+            "title": "IP of the device (should be static)",
             "type": "string",
             "placeholder": "192.168.x.x",
             "required": true,
-            "description": "See: https://github.com/tritter/homebridge-mertik-fireplace"
+            "description": "See: https://github.com/omarshahine/homebridge-valor-fireplace"
           }
         }
       }

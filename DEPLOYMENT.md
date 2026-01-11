@@ -1,22 +1,22 @@
 # Deployment Guide
 
-This guide explains how to deploy your custom version of homebridge-valor-fireplace to your Homebridge Pi.
+This guide explains how to deploy homebridge-valor-fireplace to your Homebridge installation.
 
 ## Prerequisites
 
-- SSH access to your Homebridge Pi
-- Git and Node.js installed on the Pi
-- SSH key set up for GitHub access on the Pi
+- SSH access to your Homebridge server (Pi or other)
+- Git and Node.js installed
+- SSH key set up for GitHub access
 
 ## Initial Setup (One-time)
 
-### 1. Set up SSH Key on Pi
+### 1. Set up SSH Key
 
-If you haven't already, generate an SSH key on your Pi to access GitHub:
+If you haven't already, generate an SSH key to access GitHub:
 
 ```bash
-# On your Pi via SSH
-ssh-keygen -t ed25519 -C "homebridge-pi"
+# On your server via SSH
+ssh-keygen -t ed25519 -C "homebridge"
 # Press Enter 3 times to accept defaults
 
 # Display your public key
@@ -28,7 +28,7 @@ Copy the output and add it to GitHub at: https://github.com/settings/ssh/new
 ### 2. Clone Repository
 
 ```bash
-# SSH into your Pi
+# SSH into your server
 ssh pi@YOUR_HOMEBRIDGE_IP
 
 # Navigate to Homebridge directory
@@ -39,9 +39,6 @@ git clone git@github.com:omarshahine/homebridge-valor-fireplace.git
 
 # Navigate into the project
 cd homebridge-valor-fireplace
-
-# Checkout the child-bridge branch
-git checkout child-bridge
 ```
 
 ### 3. Initial Install
@@ -53,14 +50,8 @@ npm install
 # Build the project
 npm run build
 
-# Install the official plugin first (Homebridge UI requirement)
-npm install -g homebridge-mertik-fireplace
-
-# Then install your custom version on top
+# Install globally
 npm link
-# OR
-npm pack
-npm install -g homebridge-mertik-fireplace-1.6.2.tgz
 ```
 
 ### 4. Restart Homebridge
@@ -69,23 +60,23 @@ Go to `http://YOUR_HOMEBRIDGE_IP:8581` → **Homebridge** → **Restart**
 
 ## Updating Your Plugin
 
-After making changes on your Mac and pushing to GitHub:
+After making changes and pushing to GitHub:
 
-### On Your Mac
+### On Your Development Machine
 
 ```bash
-cd /Users/omarshahine/GitHub/homebridge-valor-fireplace
+cd /path/to/homebridge-valor-fireplace
 
 # Make your changes
 git add .
 git commit -m "Description of changes"
-git push origin child-bridge
+git push origin master
 ```
 
-### On Your Pi
+### On Your Homebridge Server
 
 ```bash
-# SSH into your Pi
+# SSH into your server
 ssh pi@YOUR_HOMEBRIDGE_IP
 
 # Navigate to the project
@@ -102,9 +93,6 @@ npm run build
 
 # Reinstall globally
 npm link
-# OR
-npm pack
-npm install -g homebridge-mertik-fireplace-1.6.2.tgz
 
 # Restart Homebridge via UI at http://YOUR_HOMEBRIDGE_IP:8581
 ```
@@ -129,7 +117,7 @@ npm install
 npm run build
 npm link
 echo ""
-echo "✓ Update complete!"
+echo "Update complete!"
 echo "Now restart Homebridge via the UI at http://YOUR_HOMEBRIDGE_IP:8581"
 ```
 
@@ -153,36 +141,48 @@ Ensure your `/var/lib/homebridge/config.json` includes:
 ```json
 "platforms": [
     {
+        "platform": "ValorFireplace",
         "fireplaces": [
             {
                 "name": "Fireplace",
                 "ip": "192.168.X.X"
             }
-        ],
-        "platform": "MertikFireplace"
+        ]
     }
 ]
 ```
 
 Replace `192.168.X.X` with your fireplace's IP address.
 
+## Publishing to npm
+
+To publish the plugin so others can install it:
+
+```bash
+# Login to npm (one-time)
+npm login
+
+# Publish (from the project directory)
+npm publish
+```
+
+Users can then install with:
+
+```bash
+npm install -g homebridge-valor-fireplace
+```
+
 ## Troubleshooting
-
-### Plugin not showing in UI
-
-- The Homebridge UI sometimes requires the official plugin to be installed first
-- Install the official version: `npm install -g homebridge-mertik-fireplace`
-- Then install your custom version on top
 
 ### npm not found
 
-Make sure you're using the `pi` user or the appropriate user that has Node.js in the PATH.
+Make sure you're using the appropriate user that has Node.js in the PATH.
 
 ### Verify Installation
 
 ```bash
 # Check if plugin is installed
-npm list -g homebridge-mertik-fireplace
+npm list -g homebridge-valor-fireplace
 
 # View Homebridge logs
 tail -f ~/.homebridge/homebridge.log
@@ -206,8 +206,6 @@ http://YOUR_HOMEBRIDGE_IP:8581
 
 ## Notes
 
-- Always test your changes locally on your Mac before deploying
-- The `child-bridge` branch is the development branch
+- Always test changes locally before deploying
 - Keep your fireplace IP address static in your router settings
-- After major updates, check the Homebridge logs for any errors
-
+- After updates, check the Homebridge logs for any errors

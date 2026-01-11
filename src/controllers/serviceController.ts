@@ -1,6 +1,6 @@
 import { Characteristic, Logger, PlatformAccessory, Service } from "homebridge";
 import { IDeviceConfig } from "../models/deviceConfig";
-import { MertikPlatform } from "../platform";
+import { ValorPlatform } from "../platform";
 
 export interface IServiceController {
   reachableCharacteristic(): Characteristic;
@@ -23,7 +23,7 @@ export class ServiceController implements IServiceController {
   constructor(
     public readonly log: Logger,
     public readonly accessory: PlatformAccessory,
-    private readonly platform: MertikPlatform
+    private readonly platform: ValorPlatform
   ) {
     this.config = this.accessory.context.device;
 
@@ -52,7 +52,7 @@ export class ServiceController implements IServiceController {
     }
     this.accessory
       .getService(this.platform.Service.AccessoryInformation)!
-      .setCharacteristic(this.platform.Characteristic.Manufacturer, "Mertik")
+      .setCharacteristic(this.platform.Characteristic.Manufacturer, "Valor")
       .setCharacteristic(this.platform.Characteristic.Model, "B6R-WME")
       .setCharacteristic(
         this.platform.Characteristic.SerialNumber,
