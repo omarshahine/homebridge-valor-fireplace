@@ -331,6 +331,6 @@ export class FireplacePlatformAccessory {
   }
 
   private celsiusToFahrenheit(celsius: number): number {
-    return Math.round((celsius * 9/5 + 32) * 10) / 10;
+    return Math.round(celsius * 9/5 + 32);
   }
 }
