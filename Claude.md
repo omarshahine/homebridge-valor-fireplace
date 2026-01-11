@@ -52,6 +52,45 @@ homebridge-valor-fireplace/
 - **Connection Timeout:** 5 minutes
 - **Status Packet:** 106 hex-encoded characters containing mode, temperature, ignition status, aux state
 
+### Status Packet Structure
+
+The fireplace returns a 106-character hex status string with the following key positions:
+
+| Position | Length | Description |
+|----------|--------|-------------|
+| 16-20 | 4 chars | Status bits (guard flame, igniting, shutdown, aux) |
+| 24-25 | 1 char | Mode bits (primary mode indicator) |
+| 28-32 | 4 chars | Current temperature (hex, divide by 10 for °C) |
+| 32-36 | 4 chars | Target temperature (hex, divide by 10 for °C) |
+| Last 2 | 2 chars | End byte (secondary mode indicator) |
+
+### Mode Detection Logic
+
+Mode detection uses a two-step process:
+
+**Step 1: Check modeBits at position 24**
+
+| modeBits | Mode | Source |
+|----------|------|--------|
+| `"1"` | Temperature | CLI / App |
+| `"2"` | Eco | CLI / App |
+| `"0"` | Check end byte... | Remote / Thermostat |
+
+**Step 2: If modeBits = "0", check the last 2 characters (end byte)**
+
+| endByte | Mode | Remote Setting |
+|---------|------|----------------|
+| `"01"` | Temperature | CLI Temperature mode |
+| `"02"` | Temperature | Remote variant |
+| `"04"` | Temperature | Remote: Temp, Timer, or Schedule |
+| `"08"` | Manual | Remote: Flame Height |
+
+**Summary:**
+- CLI/App sets modeBits to `"1"` (Temp) or `"2"` (Eco)
+- Remote/Thermostat leaves modeBits at `"0"` and uses endByte to indicate mode
+- Remote modes Temp, Timer, and Schedule all use temperature regulation (endByte = `"04"`)
+- Remote Flame Height is manual control (endByte = `"08"`)
+
 ### HomeKit Services
 
 - **HeaterCooler Service:** Primary control (Active, Temperature, Mode, Lock, Swing/Aux)
