@@ -63,7 +63,7 @@ export class FireplacePlatformAccessory {
       } else if (statusChanged) {
         this.platform.log.info(`Status changed - ${status}`);
       } else if (this.platform.debugMode) {
-        this.platform.log.debug(`Status update - ${status}`);
+        this.platform.log.info(`Status update - ${status}`);
       }
 
       this.lastStatusString = statusString;
