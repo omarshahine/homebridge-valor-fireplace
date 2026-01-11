@@ -6,11 +6,11 @@ import {
   PlatformConfig,
   Service,
   Characteristic,
-} from "homebridge";
+} from 'homebridge';
 
-import { PLATFORM_NAME, PLUGIN_NAME } from "./settings";
-import { FireplacePlatformAccessory } from "./platformAccessory";
-import { IDeviceConfig } from "./models/deviceConfig";
+import { PLATFORM_NAME, PLUGIN_NAME } from './settings';
+import { FireplacePlatformAccessory } from './platformAccessory';
+import { IDeviceConfig } from './models/deviceConfig';
 
 /**
  * HomebridgePlatform
@@ -34,55 +34,55 @@ export class ValorPlatform implements DynamicPlatformPlugin {
   constructor(
     public readonly log: Logger,
     public readonly config: PlatformConfig,
-    public readonly api: API
+    public readonly api: API,
   ) {
     this.debugMode = this.config.debug === true;
     this.temperatureUnit = this.config.temperatureUnit === 'F' ? 'F' : 'C';
-    this.log.debug("Finished initializing platform:", this.config.name);
+    this.log.debug('Finished initializing platform:', this.config.name);
     if (this.debugMode) {
-      this.log.info("Debug mode enabled - all status updates will be logged");
+      this.log.info('Debug mode enabled - all status updates will be logged');
     }
     this.log.info(`Temperature unit: ${this.temperatureUnit === 'F' ? 'Fahrenheit' : 'Celsius'}`);
 
-    this.api.on("didFinishLaunching", () => {
-      log.debug("Executed didFinishLaunching callback");
+    this.api.on('didFinishLaunching', () => {
+      log.debug('Executed didFinishLaunching callback');
       this.configureDevices();
     });
   }
 
   configureAccessory(accessory: PlatformAccessory) {
-    this.log.info("Loading accessory from cache:", accessory.displayName);
+    this.log.info('Loading accessory from cache:', accessory.displayName);
     this.accessories.push(accessory);
   }
 
   configureDevices() {
     const configuredDevices: IDeviceConfig[] =
-      this.config["fireplaces"] ?? new Array<IDeviceConfig>();
+      this.config['fireplaces'] ?? new Array<IDeviceConfig>();
     const devicesMap = configuredDevices.reduce(
       (a, x) => ({ ...a, [x.name]: x.ip }),
-      {}
+      {},
     );
     for (const configuredDevice of configuredDevices) {
       if (!configuredDevice.name) {
-        this.log.error("No valid fireplace name given!");
+        this.log.error('No valid fireplace name given!');
         return;
       }
       const uuid = this.api.hap.uuid.generate(configuredDevice.name);
       const accessory = this.accessories.find((a) => a.UUID === uuid);
       if (accessory) {
         this.log.info(
-          "Restoring existing fireplace from cache:",
-          accessory.displayName
+          'Restoring existing fireplace from cache:',
+          accessory.displayName,
         );
         accessory.category = this.api.hap.Categories.AIR_HEATER;
         accessory.context.device = configuredDevice;
         new FireplacePlatformAccessory(this, accessory);
         this.api.updatePlatformAccessories([accessory]);
       } else {
-        this.log.info("Adding new fireplace:", configuredDevice.name);
+        this.log.info('Adding new fireplace:', configuredDevice.name);
         const newAccessory = new this.api.platformAccessory(
           configuredDevice.name,
-          uuid
+          uuid,
         );
         newAccessory.category = this.api.hap.Categories.AIR_HEATER;
         newAccessory.context.device = configuredDevice;
@@ -96,13 +96,13 @@ export class ValorPlatform implements DynamicPlatformPlugin {
     // Delete previously configured devices that don't exist anymore
     for (const existingAccessory of this.accessories) {
       if (!devicesMap[existingAccessory.context.device.name]) {
-        this.log.debug("Removing unconfigured fireplace");
+        this.log.debug('Removing unconfigured fireplace');
         this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [
           existingAccessory,
         ]);
         this.log.info(
-          "Removing existing fireplace from cache:",
-          existingAccessory.displayName
+          'Removing existing fireplace from cache:',
+          existingAccessory.displayName,
         );
       }
     }
