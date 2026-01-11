@@ -28,16 +28,21 @@ export class ValorPlatform implements DynamicPlatformPlugin {
   // Debug mode - logs all status updates instead of just changes
   public readonly debugMode: boolean;
 
+  // Temperature unit - 'C' for Celsius, 'F' for Fahrenheit
+  public readonly temperatureUnit: 'C' | 'F';
+
   constructor(
     public readonly log: Logger,
     public readonly config: PlatformConfig,
     public readonly api: API
   ) {
     this.debugMode = this.config.debug === true;
+    this.temperatureUnit = this.config.temperatureUnit === 'F' ? 'F' : 'C';
     this.log.debug("Finished initializing platform:", this.config.name);
     if (this.debugMode) {
       this.log.info("Debug mode enabled - all status updates will be logged");
     }
+    this.log.info(`Temperature unit: ${this.temperatureUnit === 'F' ? 'Fahrenheit' : 'Celsius'}`);
 
     this.api.on("didFinishLaunching", () => {
       log.debug("Executed didFinishLaunching callback");

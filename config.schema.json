@@ -12,6 +12,16 @@
         "default": false,
         "description": "Enable to log all status updates. When disabled, only logs status changes."
       },
+      "temperatureUnit": {
+        "title": "Temperature Unit",
+        "type": "string",
+        "default": "C",
+        "oneOf": [
+          { "title": "Celsius", "enum": ["C"] },
+          { "title": "Fahrenheit", "enum": ["F"] }
+        ],
+        "description": "Temperature unit for log output."
+      },
       "fireplaces": {
         "title": "Fireplaces",
         "type": "array",

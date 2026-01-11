@@ -59,11 +59,11 @@ export class FireplacePlatformAccessory {
 
       // Log on first status, on changes, or if debug mode is enabled
       if (!this.lastStatusString) {
-        this.platform.log.info(`Initial status - ${status}`);
+        this.platform.log.info(`Initial status - ${this.formatStatus(status)}`);
       } else if (statusChanged) {
-        this.platform.log.info(`Status changed - ${status}`);
+        this.platform.log.info(`Status changed - ${this.formatStatus(status)}`);
       } else if (this.platform.debugMode) {
-        this.platform.log.info(`Status update - ${status}`);
+        this.platform.log.info(`Status update - ${this.formatStatus(status)}`);
       }
 
       this.lastStatusString = statusString;
@@ -309,5 +309,28 @@ export class FireplacePlatformAccessory {
       );
     }
     return targetTemperature;
+  }
+
+  // Format status with temperature in configured unit
+  private formatStatus(status: FireplaceStatus): string {
+    const unit = this.platform.temperatureUnit;
+    const current = unit === 'F'
+      ? this.celsiusToFahrenheit(status.currentTemperature)
+      : status.currentTemperature;
+    const target = unit === 'F'
+      ? this.celsiusToFahrenheit(status.targetTemperature)
+      : status.targetTemperature;
+
+    return `mode:${OperationMode[status.mode]} `
+      + `ignite:${status.igniting} `
+      + `target:${target}°${unit} `
+      + `aux:${status.auxOn} `
+      + `current:${current}°${unit} `
+      + `shutdown:${status.shuttingDown} `
+      + `guardOn:${status.guardFlameOn}`;
+  }
+
+  private celsiusToFahrenheit(celsius: number): number {
+    return Math.round((celsius * 9/5 + 32) * 10) / 10;
   }
 }
