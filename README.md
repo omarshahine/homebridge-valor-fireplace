@@ -79,6 +79,10 @@ Add the following to your Homebridge `config.json`:
 - Homebridge 1.3.5 or later
 - Node.js 14.18.1 or later
 
+## Credits
+
+This plugin is based on [homebridge-mertik-fireplace](https://github.com/tritter/homebridge-mertik-fireplace) by [@tritter](https://github.com/tritter).
+
 ## Legal
 
 *Valor* is a registered trademark of Valor Fireplaces.
