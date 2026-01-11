@@ -18,7 +18,8 @@ export class FireplaceStatus {
     this.currentTemperature = parseInt('0x' + status.substring(28, 32)) / 10;
     this.targetTemperature = parseInt('0x' + status.substring(32, 36)) / 10;
     this.auxOn = fromBitStatus(statusBits, 12);
-    let opMode = operationModeOfBits(modeBits);
+    const endByte = status.substring(status.length - 2);
+    let opMode = getOperationMode(modeBits, endByte);
     if (!this.guardFlameOn || this.shuttingDown) {
       opMode = OperationMode.Off;
     }
@@ -32,18 +33,41 @@ export class FireplaceStatus {
           +`aux:${this.auxOn} `
           +`current:${this.currentTemperature} `
           +`shutdown:${this.shuttingDown} `
-          +`guardOn:${this.guardFlameOn} `;
+          +`guardOn:${this.guardFlameOn}`;
   }
 }
 
-function operationModeOfBits(mode) {
-  switch(mode) {
+/**
+ * Two-step mode detection:
+ * Step 1: Check modeBits at position 24
+ *   - '1' = Temperature (CLI/App)
+ *   - '2' = Eco (CLI/App)
+ *   - '0' = Check endByte (Remote/Thermostat)
+ * Step 2: If modeBits = '0', check endByte (last 2 chars)
+ *   - '01' = Temperature (CLI Temperature mode)
+ *   - '02' = Temperature (Remote variant)
+ *   - '04' = Temperature (Remote: Temp, Timer, or Schedule)
+ *   - '08' = Manual (Remote: Flame Height)
+ */
+function getOperationMode(modeBits: string, endByte: string): OperationMode {
+  // Primary mode detection (CLI/App controlled)
+  switch (modeBits) {
     case '1':
       return OperationMode.Temperature;
     case '2':
       return OperationMode.Eco;
     default:
-      return OperationMode.Manual;
+      // Secondary detection for remote/thermostat control
+      switch (endByte) {
+        case '01': // CLI Temperature
+        case '02': // Remote Temperature variant
+        case '04': // Remote: Temp, Timer, or Schedule
+          return OperationMode.Temperature;
+        case '08': // Remote: Flame Height
+          return OperationMode.Manual;
+        default:
+          return OperationMode.Manual;
+      }
   }
 }
 
