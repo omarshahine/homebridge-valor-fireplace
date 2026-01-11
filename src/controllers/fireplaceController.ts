@@ -7,6 +7,7 @@ import { FlameHeight, FlameHeightUtils } from '../models/flameHeight';
 import { Logger, PlatformAccessory } from 'homebridge';
 import { TemperatureRangeUtils } from '../models/temperatureRange';
 import { IRequest } from '../models/request';
+import { ValorPlatform } from '../platform';
 
 export interface IFireplaceController extends EventEmitter {
   request(request: IRequest): Promise<boolean>;
@@ -37,7 +38,9 @@ export class FireplaceController extends EventEmitter implements IFireplaceContr
 
   constructor(
     public readonly log: Logger,
-    public readonly accessory: PlatformAccessory) {
+    public readonly accessory: PlatformAccessory,
+    public readonly platform?: ValorPlatform,
+  ) {
     super();
     this.config = this.accessory.context.device;
     this.startStatusSubscription();
@@ -198,14 +201,23 @@ export class FireplaceController extends EventEmitter implements IFireplaceContr
   }
 
   public async setTemperature(temperature: number) {
-    this.log.info(`Set temperature to ${temperature}`);
-    this.setManualMode();
-    await this.delay(1_000);
-    this.resetFlameHeight();
-    await this.delay(5_000);
-    this.setTemperatureMode();
-    if (this?.lastStatus?.targetTemperature !== temperature) {
+    // Log in configured temperature unit
+    const unit = this.platform?.temperatureUnit || 'C';
+    const displayTemp = unit === 'F' ? Math.round(temperature * 9/5 + 32) : temperature;
+    this.log.info(`Set temperature to ${displayTemp}°${unit}`);
+
+    // Only do full mode reset if not already in temperature mode
+    const currentMode = this.lastStatus?.mode;
+    if (currentMode !== OperationMode.Temperature) {
+      this.setManualMode();
+      await this.delay(1_000);
+      this.resetFlameHeight();
       await this.delay(5_000);
+      this.setTemperatureMode();
+      await this.delay(5_000);
+    }
+
+    if (this?.lastStatus?.targetTemperature !== temperature) {
       await this.setTemperatureValue(temperature);
     }
   }

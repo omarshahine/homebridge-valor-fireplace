@@ -32,7 +32,7 @@ export class FireplacePlatformAccessory {
     private readonly platform: ValorPlatform,
     accessory: PlatformAccessory,
   ) {
-    this.fireplace = new FireplaceController(platform.log, accessory);
+    this.fireplace = new FireplaceController(platform.log, accessory, platform);
     this.service = new ServiceController(platform.log, accessory, platform);
     this.request = new RequestController(
       platform.log,
