@@ -198,7 +198,7 @@ npm publish
 **Important:** The Homebridge certification bot compares your npm version with GitHub. If you don't push, certification will fail with "version mismatch".
 
 ```bash
-git push origin master --tags
+git push origin main --tags
 ```
 
 This pushes both the version bump commit and the version tag (e.g., `v2.0.2`).
