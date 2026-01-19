@@ -195,9 +195,13 @@ npm publish
 
 ### 4. Push to GitHub
 
+**Important:** The Homebridge certification bot compares your npm version with GitHub. If you don't push, certification will fail with "version mismatch".
+
 ```bash
 git push origin main --tags
 ```
+
+This pushes both the version bump commit and the version tag (e.g., `v2.0.2`).
 
 Users can then install with:
 
@@ -239,6 +243,7 @@ The bot will run automated checks. If any fail:
 | Invalid schema `required` | Change from `"required": true` on fields to `"required": ["field1", "field2"]` at object level |
 | Missing name property | Add `name` property to config.schema.json schema |
 | GitHub issues disabled | Enable Issues in repo Settings → Features |
+| Version mismatch | Push version bump to GitHub: `git push origin main --tags` |
 
 ## Troubleshooting
 
