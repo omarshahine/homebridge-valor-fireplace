@@ -6,6 +6,12 @@
   "schema": {
     "type": "object",
     "properties": {
+      "name": {
+        "title": "Name",
+        "type": "string",
+        "default": "Valor Fireplace",
+        "description": "Plugin name as displayed in the Homebridge log."
+      },
       "debug": {
         "title": "Debug Mode",
         "type": "boolean",
@@ -32,17 +38,16 @@
             "name": {
               "title": "Name",
               "type": "string",
-              "placeholder": "Fireplace",
-              "required": true
+              "placeholder": "Fireplace"
             },
             "ip": {
               "title": "IP Address",
               "type": "string",
               "placeholder": "192.168.x.x",
-              "required": true,
               "description": "Static IP address of the fireplace WiFi controller"
             }
-          }
+          },
+          "required": ["name", "ip"]
         }
       }
     }
