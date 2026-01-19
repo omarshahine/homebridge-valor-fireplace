@@ -132,22 +132,65 @@ The plugin is configured in the Homebridge `config.json`:
 }
 ```
 
-## Homebridge Plugin Publishing Requirements
+## Publishing to npm
 
-To publish to npm and be listed on homebridge.io:
+### Version Bumping
 
-1. **Package name must start with `homebridge-`**
-2. **Required keyword:** `"homebridge-plugin"` in package.json keywords
-3. **Main entry:** Point to compiled JavaScript (`dist/index.js`)
-4. **Engines:** Specify minimum `homebridge` and `node` versions
-5. **Repository & Bugs:** Valid GitHub URLs
+Use semantic versioning:
+- **Patch** (2.0.1 → 2.0.2): Bug fixes, minor changes
+- **Minor** (2.0.1 → 2.1.0): New features, backward compatible
+- **Major** (2.0.1 → 3.0.0): Breaking changes
 
-### Verification
+```bash
+npm version patch   # or minor, or major
+npm publish
+git push origin main --tags
+```
 
-To be "Verified by Homebridge":
-- Plugin must be stable and well-maintained
-- Submit to the [Homebridge Verified Plugins](https://github.com/homebridge/homebridge/wiki/Verified-Plugins) wiki
-- Requires community review and approval
+### Creating GitHub Releases
+
+```bash
+gh release create v2.0.2 --title "v2.0.2" --notes "Release notes here"
+```
+
+Or manually at: https://github.com/omarshahine/homebridge-valor-fireplace/releases/new
+
+## Homebridge Certification
+
+To get verified and listed on [homebridge.io](https://homebridge.io):
+
+### Requirements
+
+1. **package.json keywords**: Must include `"homebridge-plugin"` plus additional relevant keywords
+2. **config.schema.json**:
+   - Must include a `name` property at the top level of schema properties
+   - `required` must be an array at object level (not boolean on individual fields)
+3. **GitHub Issues**: Must be enabled on the repository
+4. **Version sync**: npm version must match GitHub package.json version
+
+### Submitting for Verification
+
+1. Open an issue at: https://github.com/homebridge/plugins/issues/new/choose
+2. Select "Plugin Verification Request"
+3. Fill in your plugin details
+
+### After Submitting
+
+The bot will run automated checks. If any fail:
+1. Fix the issues in your code
+2. Bump version and publish to npm
+3. Push to GitHub: `git push origin main --tags`
+4. Comment `/check` on the issue to re-run verification
+
+### Common Certification Failures
+
+| Issue | Fix |
+|-------|-----|
+| Missing keywords | Add more keywords to package.json besides `homebridge-plugin` |
+| Invalid schema `required` | Change from `"required": true` on fields to `"required": ["field1", "field2"]` at object level |
+| Missing name property | Add `name` property to config.schema.json schema |
+| GitHub issues disabled | Enable Issues in repo Settings → Features |
+| Version mismatch | Push version bump to GitHub: `git push origin main --tags` |
 
 ## Device Compatibility
 
