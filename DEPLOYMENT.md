@@ -158,12 +158,45 @@ Replace `192.168.X.X` with your fireplace's IP address.
 
 To publish the plugin so others can install it:
 
-```bash
-# Login to npm (one-time)
-npm login
+### 1. Login to npm (one-time)
 
-# Publish (from the project directory)
+```bash
+npm login
+```
+
+### 2. Bump Version
+
+Use semantic versioning:
+- **Patch** (2.0.1 → 2.0.2): Bug fixes, minor changes
+- **Minor** (2.0.1 → 2.1.0): New features, backward compatible
+- **Major** (2.0.1 → 3.0.0): Breaking changes
+
+```bash
+# For bug fixes / small changes
+npm version patch
+
+# For new features
+npm version minor
+
+# For breaking changes
+npm version major
+```
+
+This automatically:
+- Updates `package.json` version
+- Creates a git commit
+- Creates a git tag
+
+### 3. Publish
+
+```bash
 npm publish
+```
+
+### 4. Push to GitHub
+
+```bash
+git push origin main --tags
 ```
 
 Users can then install with:
@@ -171,6 +204,41 @@ Users can then install with:
 ```bash
 npm install -g homebridge-valor-fireplace
 ```
+
+## Homebridge Certification
+
+To get your plugin verified and listed on [homebridge.io](https://homebridge.io):
+
+### Requirements
+
+1. **package.json keywords**: Must include `"homebridge-plugin"` plus additional relevant keywords
+2. **config.schema.json**:
+   - Must include a `name` property at the top level
+   - `required` must be an array at object level (not boolean on individual fields)
+3. **GitHub Issues**: Must be enabled on the repository
+
+### Submitting for Verification
+
+1. Open an issue at: https://github.com/homebridge/plugins/issues/new/choose
+2. Select "Plugin Verification Request"
+3. Fill in your plugin details
+
+### After Submitting
+
+The bot will run automated checks. If any fail:
+
+1. Fix the issues in your code
+2. Bump version and publish to npm
+3. Comment `/check` on the issue to re-run verification
+
+### Common Certification Failures
+
+| Issue | Fix |
+|-------|-----|
+| Missing keywords | Add more keywords to package.json besides `homebridge-plugin` |
+| Invalid schema `required` | Change from `"required": true` on fields to `"required": ["field1", "field2"]` at object level |
+| Missing name property | Add `name` property to config.schema.json schema |
+| GitHub issues disabled | Enable Issues in repo Settings → Features |
 
 ## Troubleshooting
 
