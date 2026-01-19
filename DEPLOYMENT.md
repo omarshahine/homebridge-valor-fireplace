@@ -198,10 +198,20 @@ npm publish
 **Important:** The Homebridge certification bot compares your npm version with GitHub. If you don't push, certification will fail with "version mismatch".
 
 ```bash
-git push origin main --tags
+git push origin master --tags
 ```
 
 This pushes both the version bump commit and the version tag (e.g., `v2.0.2`).
+
+### 5. Create GitHub Release (optional)
+
+Git tags and GitHub Releases are different. Tags mark commits; Releases provide release notes and visibility.
+
+```bash
+gh release create v2.0.2 --title "v2.0.2" --notes "Release notes here"
+```
+
+Or manually at: https://github.com/omarshahine/homebridge-valor-fireplace/releases/new
 
 Users can then install with:
 
