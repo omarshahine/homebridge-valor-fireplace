@@ -14,10 +14,12 @@ export interface IRequestController {
 }
 
 export class RequestController implements IRequestController{
+  private static MAX_RETRIES = 10;
   private busy = false;
   private scheduledRequest?: IRequest;
   private sendTask?: NodeJS.Timer;
   private lockTask?: NodeJS.Timer;
+  private retryCount = 0;
 
   constructor(
     public readonly log: Logger,
@@ -60,14 +62,17 @@ export class RequestController implements IRequestController{
   }
 
   setAux(on: boolean) {
+    this.retryCount = 0;
     this.scheduleRequest({auxOn: on});
   }
 
   setMode(mode: OperationMode) {
+    this.retryCount = 0;
     this.scheduleRequest({mode});
   }
 
   setTemperature(temperature: number) {
+    this.retryCount = 0;
     this.scheduleRequest({temperature});
   }
 
@@ -104,7 +109,16 @@ export class RequestController implements IRequestController{
     this.busy = true;
     const success = await this.fireplace.request(request);
     if (!success) {
-      this.scheduleRequest(request);
+      this.retryCount++;
+      if (this.retryCount <= RequestController.MAX_RETRIES) {
+        this.log.info(`Retry attempt ${this.retryCount}/${RequestController.MAX_RETRIES}`);
+        this.scheduleRequest(request);
+      } else {
+        this.log.warn(`Max retries (${RequestController.MAX_RETRIES}) reached, giving up`);
+        this.retryCount = 0;
+      }
+    } else {
+      this.retryCount = 0;
     }
     this.scheduledRequest = undefined;
     this.busy = false;

@@ -54,19 +54,19 @@ export class FireplacePlatformAccessory {
 
   subscribeFireplace() {
     this.fireplace.on('status', (status) => {
-      const statusString = status.toString();
-      const statusChanged = this.lastStatusString !== statusString;
+      const formattedStatus = this.formatStatus(status);
+      const statusChanged = this.lastStatusString !== formattedStatus;
 
       // Log on first status, on changes, or if debug mode is enabled
       if (!this.lastStatusString) {
-        this.platform.log.info(`Initial status - ${this.formatStatus(status)}`);
+        this.platform.log.info(`Initial status - ${formattedStatus}`);
       } else if (statusChanged) {
-        this.platform.log.info(`Status changed - ${this.formatStatus(status)}`);
+        this.platform.log.info(`Status changed - ${formattedStatus}`);
       } else if (this.platform.debugMode) {
-        this.platform.log.info(`Status update - ${this.formatStatus(status)}`);
+        this.platform.log.info(`Status update - ${formattedStatus}`);
       }
 
-      this.lastStatusString = statusString;
+      this.lastStatusString = formattedStatus;
       this.updateActive(status);
       if (!status.igniting && !status.shutdown) {
         this.updateCurrentHeatingCoolerState(status);
