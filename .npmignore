@@ -7,6 +7,8 @@ nodemon.json
 # Development files
 .github/
 .vscode/
+.claude/
+.cursor/
 
 # Images (README uses GitHub raw URLs)
 .img/
@@ -14,7 +16,7 @@ images/
 
 # Documentation (README included automatically)
 DEPLOYMENT.md
-Claude.md
+CLAUDE.md
 
 # Logs
 *.log
