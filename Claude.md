@@ -155,6 +155,13 @@ To be "Verified by Homebridge":
 - **WiFi Hardware:** [GV60 WiFi Module](https://www.valorfireplaces.com/media/Remote/GV60WIFI-Upgrade-Instructions.pdf)
 - **Compatible Fireplaces:** Must support the [Valor10 Remote App](https://www.valorfireplaces.com/features/valor10-remote-app.php)
 
+## Code Hygiene
+
+- No hardcoded user paths (`/Users/[name]/`) - use `~/` or `${HOME}`
+- No personal email addresses in tracked files (allowed: `@example.com`, `@anthropic.com`, `@noreply`)
+- No API keys or secrets in code - use environment variables
+- No phone numbers or PII in examples - use generic placeholders
+
 ## Legal
 
 *Valor* is a registered trademark of Valor Fireplaces.
