@@ -15,6 +15,8 @@ export interface IRequestController {
 
 export class RequestController implements IRequestController{
   private static MAX_RETRIES = 10;
+  private static DEBOUNCE_MS = 10_000;
+  private static RETRY_DELAY_MS = 90_000;
   private busy = false;
   private scheduledRequest?: IRequest;
   private sendTask?: NodeJS.Timer;
@@ -81,14 +83,14 @@ export class RequestController implements IRequestController{
     this.sendTask = undefined;
   }
 
-  private scheduleRequest(request: IRequest) {
+  private scheduleRequest(request: IRequest, delayMs: number = RequestController.DEBOUNCE_MS) {
     if (this.sendTask) {
       this.clearScheduledTask();
     }
 
     const mergedRequest = this.scheduledRequest ? {...this.scheduledRequest, ...request} : request;
     this.scheduledRequest = mergedRequest;
-    this.sendTask = setTimeout(() => this.sendRequest(mergedRequest), 10_000);
+    this.sendTask = setTimeout(() => this.sendRequest(mergedRequest), delayMs);
   }
 
   private async sendRequest(request: IRequest, retry = false) {
@@ -97,7 +99,7 @@ export class RequestController implements IRequestController{
     }
     if (!this.isAllowed()) {
       if (!retry) {
-        setTimeout(() => this.sendRequest(request, true), 10_000);
+        setTimeout(() => this.sendRequest(request, true), RequestController.DEBOUNCE_MS);
         return;
       }
 
@@ -111,8 +113,8 @@ export class RequestController implements IRequestController{
     if (!success) {
       this.retryCount++;
       if (this.retryCount <= RequestController.MAX_RETRIES) {
-        this.log.info(`Retry attempt ${this.retryCount}/${RequestController.MAX_RETRIES}`);
-        this.scheduleRequest(request);
+        this.log.info(`Retry attempt ${this.retryCount}/${RequestController.MAX_RETRIES} (waiting ${RequestController.RETRY_DELAY_MS / 1000}s)`);
+        this.scheduleRequest(request, RequestController.RETRY_DELAY_MS);
       } else {
         this.log.warn(`Max retries (${RequestController.MAX_RETRIES}) reached, giving up`);
         this.retryCount = 0;
