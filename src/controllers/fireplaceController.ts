@@ -16,6 +16,12 @@ export interface IFireplaceController extends EventEmitter {
   getFlameHeight(): FlameHeight;
   reachable(): boolean;
   setTemperature(temperature: number): void;
+  /**
+   * True when a confirmed Mertik GV60 hard-lockout state is in effect
+   * (last terminated attempt was a hard-fail with no subsequent success).
+   * Future code can wire this to a HomeKit `StatusFault` characteristic.
+   */
+  isLockoutActive(): boolean;
 }
 
 export interface IFireplaceEvents {

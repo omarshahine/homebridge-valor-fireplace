@@ -8,7 +8,7 @@ export class FireplaceStatus {
   public readonly igniting: boolean = false;
   public readonly guardFlameOn: boolean = false;
   public readonly shuttingDown: boolean = false;
-  /** Raw 4-char hex of the status bit field (chars 16-20). Useful for diagnostics. */
+  /** Raw 4-char hex of the status bit field (chars 16-19). Useful for diagnostics. */
   public readonly statusBitsHex: string = '';
   /**
    * Heuristic: a Mertik GV60 ignition lockout looks like `igniting` set with
