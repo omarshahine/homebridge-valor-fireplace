@@ -20,6 +20,7 @@ export interface IFireplaceController extends EventEmitter {
 export interface IFireplaceEvents {
   on(event: 'status', listener: (status: FireplaceStatus) => void): this;
   on(event: 'reachable', listener: (reachable: boolean) => void): this;
+  on(event: 'lockout', listener: (active: boolean) => void): this;
 }
 
 export class FireplaceController extends EventEmitter implements IFireplaceController, IFireplaceEvents {
@@ -32,6 +33,22 @@ export class FireplaceController extends EventEmitter implements IFireplaceContr
   private igniting = false;
   private shuttingDown = false;
   private lostConnection = false;
+  /**
+   * Circuit breaker for the Mertik GV60 ignition lockout.
+   *
+   * When the valve fails to ignite (cold thermopile, air in pilot line, low LP,
+   * fouled spark gap) the controller leaves bit 11 (`igniting`) set with bit 8
+   * (`guardFlameOn`) clear — `FireplaceStatus.lockoutSuspected`. Sending more
+   * commands in this state is futile and pollutes the log with retries.
+   *
+   * After `LOCKOUT_THRESHOLD` consecutive status reads show the lockout signature,
+   * we open the breaker: all command requests except shutdown become no-ops and
+   * we log a clear warning. The breaker closes automatically on the first status
+   * read that no longer matches the lockout signature.
+   */
+  private consecutiveLockoutReads = 0;
+  private lockoutActive = false;
+  private static LOCKOUT_THRESHOLD = 3;
   private static UNREACHABLE_TIMEOUT = 1000 * 60 * 5; //5 min
   private static REFRESH_TIMEOUT = 1000 * 15; //15 seconds
   private static STATUS_PACKET_LENGTH = 106; //characters
@@ -86,11 +103,53 @@ export class FireplaceController extends EventEmitter implements IFireplaceContr
     this.igniting = newStatus.igniting;
     this.shuttingDown = newStatus.shuttingDown;
     this.lastStatus = newStatus;
+    this.updateLockoutBreaker(newStatus);
     this.emit('status', this.lastStatus);
-    if (this.lostConnection) {
+    if (this.lostConnection && !this.lockoutActive) {
       // Make sure to turn it off, as we are not sure which state we are in.
+      // Skip during active lockout — the gas is already off and the receiver
+      // is in fault state, so sending shutdown commands just generates noise.
       this.guardFlameOff();
     }
+  }
+
+  /**
+   * Update the lockout circuit breaker from a fresh status reading.
+   *
+   * - Opens after `LOCKOUT_THRESHOLD` consecutive reads showing the lockout signature.
+   * - Closes immediately on the first read that doesn't match.
+   * - Emits `'lockout'` events on state transitions so subscribers can surface fault state.
+   */
+  private updateLockoutBreaker(status: FireplaceStatus) {
+    if (status.lockoutSuspected) {
+      this.consecutiveLockoutReads += 1;
+      if (!this.lockoutActive && this.consecutiveLockoutReads >= FireplaceController.LOCKOUT_THRESHOLD) {
+        this.lockoutActive = true;
+        this.log.warn(
+          `Mertik GV60 ignition lockout detected (status bits 0x${status.statusBitsHex}). ` +
+          'The valve likely failed to ignite and the receiver killed the gas. ' +
+          'Common causes: cold thermopile, air in the pilot line, low LP pressure, fouled spark gap. ' +
+          'Blocking further control commands until the lockout clears — recovery typically requires ' +
+          'physical intervention at the appliance (cycle gas at the wall, retry ignition, or service).',
+        );
+        this.emit('lockout', true);
+      }
+    } else {
+      if (this.lockoutActive) {
+        this.log.info('Mertik GV60 lockout cleared — resuming control.');
+        this.emit('lockout', false);
+      }
+      this.consecutiveLockoutReads = 0;
+      this.lockoutActive = false;
+    }
+  }
+
+  /**
+   * Returns true when the fireplace is in a confirmed ignition lockout.
+   * External callers (platformAccessory) can use this to render fault state.
+   */
+  public isLockoutActive(): boolean {
+    return this.lockoutActive;
   }
 
   private async igniteFireplace() {
@@ -272,6 +331,16 @@ export class FireplaceController extends EventEmitter implements IFireplaceContr
   }
 
   async request(request: IRequest): Promise<boolean> {
+    // Lockout circuit breaker: when the valve is in fault state, block all
+    // commands except an explicit shutdown (Off mode). Shutdown is allowed
+    // because it can't hurt and may help homebridge / HomeKit reconcile state.
+    if (this.lockoutActive && request.mode !== OperationMode.Off) {
+      this.log.warn(
+        `Ignoring request — fireplace is in Mertik GV60 lockout state. ` +
+        'Physical intervention required to clear (cycle gas at the wall or retry ignition manually).',
+      );
+      return false;
+    }
     let succeeds = true;
     const currentMode = this.lastStatus?.mode || OperationMode.Off;
     this.stopStatusSubscription();
