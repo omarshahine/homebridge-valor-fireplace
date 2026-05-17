@@ -8,6 +8,7 @@ import { Logger, PlatformAccessory } from 'homebridge';
 import { TemperatureRangeUtils } from '../models/temperatureRange';
 import { IRequest } from '../models/request';
 import { ValorPlatform } from '../platform';
+import { IgnitionTracker } from './ignitionTracker';
 
 export interface IFireplaceController extends EventEmitter {
   request(request: IRequest): Promise<boolean>;
@@ -15,11 +16,18 @@ export interface IFireplaceController extends EventEmitter {
   getFlameHeight(): FlameHeight;
   reachable(): boolean;
   setTemperature(temperature: number): void;
+  /**
+   * True when a confirmed Mertik GV60 hard-lockout state is in effect
+   * (last terminated attempt was a hard-fail with no subsequent success).
+   * Future code can wire this to a HomeKit `StatusFault` characteristic.
+   */
+  isLockoutActive(): boolean;
 }
 
 export interface IFireplaceEvents {
   on(event: 'status', listener: (status: FireplaceStatus) => void): this;
   on(event: 'reachable', listener: (reachable: boolean) => void): this;
+  on(event: 'lockout', listener: (active: boolean) => void): this;
 }
 
 export class FireplaceController extends EventEmitter implements IFireplaceController, IFireplaceEvents {
@@ -32,9 +40,26 @@ export class FireplaceController extends EventEmitter implements IFireplaceContr
   private igniting = false;
   private shuttingDown = false;
   private lostConnection = false;
+  /**
+   * Set when a user request (typically Off) wants to interrupt the auto-retry
+   * loop. The loop polls this between attempts and bails out gracefully.
+   */
+  private ignitionAbortRequested = false;
+  /**
+   * Tracks attempt outcomes and persists history across plugin restarts.
+   * Provides the `consecutiveFailures` / `hasRecentHardLockout` signals
+   * used by the circuit breaker below.
+   */
+  private readonly ignitionTracker: IgnitionTracker;
   private static UNREACHABLE_TIMEOUT = 1000 * 60 * 5; //5 min
   private static REFRESH_TIMEOUT = 1000 * 15; //15 seconds
   private static STATUS_PACKET_LENGTH = 106; //characters
+  /**
+   * How often we poll status while waiting for an Ignite to resolve.
+   * Tighter than the normal 15s subscription because we want to catch
+   * the igniting=1 → 0 transition quickly.
+   */
+  private static IGNITE_POLL_INTERVAL_MS = 5_000;
 
   constructor(
     public readonly log: Logger,
@@ -43,6 +68,8 @@ export class FireplaceController extends EventEmitter implements IFireplaceContr
   ) {
     super();
     this.config = this.accessory.context.device;
+    const storagePath = this.platform?.api?.user?.storagePath?.();
+    this.ignitionTracker = new IgnitionTracker(this.log, storagePath);
     this.startStatusSubscription();
   }
 
@@ -93,15 +120,154 @@ export class FireplaceController extends EventEmitter implements IFireplaceContr
     }
   }
 
+  /**
+   * True when the most recent terminated attempt was a hard lockout
+   * (igniting bit stuck past timeout). External callers (HomeKit fault
+   * surface, status reporting) can use this to render fault state.
+   */
+  public isLockoutActive(): boolean {
+    return this.ignitionTracker.hasRecentHardLockout();
+  }
+
+  /**
+   * Ignite the fireplace, retrying up to `IgnitionTracker.MAX_ATTEMPTS`
+   * times. Each attempt sends the Ignite command, waits for the receiver's
+   * own ignition cycle to resolve, and either declares success
+   * (`guardFlameOn` confirmed), a soft failure (receiver cleanly gave up —
+   * `igniting` cleared but no flame), or a hard lockout (`igniting` bit
+   * stuck past `IGNITION_TIMEOUT_MS` — receiver is in safety fault and
+   * needs manual reset).
+   *
+   * Logs each attempt as `[ignite] Attempt N of M` so the failure pattern
+   * is visible in `homebridge.log` after the fact. Persists every outcome
+   * to `<storagePath>/valor-ignition-history.json` for postmortem use even
+   * if the homebridge log rotates.
+   */
   private async igniteFireplace() {
     if (this.igniting) {
       this.log.debug('Ignore already igniting!');
       return;
     }
+    if (this.ignitionTracker.hasRecentHardLockout()) {
+      this.log.error(
+        '[ignite] Refusing to attempt — prior session ended in hard lockout. ' +
+        'Manual intervention required (cycle gas at the wall, paperclip-reset the WiFi module, ' +
+        'or retry ignition from the handheld). Restart homebridge after recovery to clear this state.',
+      );
+      return;
+    }
+    this.ignitionAbortRequested = false;
     this.igniting = true;
-    this.sendCommand('314103');
-    await this.delay(40_000);
-    this.refreshStatus();
+    const max = IgnitionTracker.MAX_ATTEMPTS;
+    try {
+      for (let attempt = 1; attempt <= max; attempt++) {
+        if (this.ignitionAbortRequested) {
+          this.log.info(`[ignite] Attempt sequence aborted by user request before attempt ${attempt} of ${max}`);
+          return;
+        }
+        this.log.info(`[ignite] Attempt ${attempt} of ${max}: sending Ignite command`);
+        const record = this.ignitionTracker.recordAttemptStart(attempt, max, 'auto-retry');
+        const startedAt = Date.now();
+        this.sendCommand('314103');
+        const outcome = await this.waitForIgnitionOutcome(attempt, max);
+        const elapsedMs = Date.now() - startedAt;
+        const bits = this.lastStatus?.statusBitsHex ?? '????';
+        if (outcome === 'success') {
+          this.ignitionTracker.recordSuccess(elapsedMs, bits);
+          this.log.info(
+            `[ignite] Attempt ${attempt} of ${max}: ✓ success after ${Math.round(elapsedMs / 1000)}s ` +
+            `(attempt id=${record.id}, bits=0x${bits})`,
+          );
+          this.emit('lockout', false);
+          return;
+        }
+        if (outcome === 'soft-fail') {
+          this.ignitionTracker.recordSoftFailure(elapsedMs, bits);
+          this.log.warn(
+            `[ignite] Attempt ${attempt} of ${max}: ✗ soft-fail after ${Math.round(elapsedMs / 1000)}s — ` +
+            `receiver gave up cleanly (bits=0x${bits}). Common on cold starts.`,
+          );
+        } else {
+          this.ignitionTracker.recordHardLockout(elapsedMs, bits);
+          this.log.error(
+            `[ignite] Attempt ${attempt} of ${max}: ✗ HARD LOCKOUT — igniting bit stuck after ` +
+            `${Math.round(elapsedMs / 1000)}s (bits=0x${bits}). Stopping retry sequence; manual reset required.`,
+          );
+          this.emit('lockout', true);
+          return;
+        }
+        if (attempt < max) {
+          const delaySec = Math.round(IgnitionTracker.RETRY_DELAY_MS / 1000);
+          this.log.info(`[ignite] Waiting ${delaySec}s before attempt ${attempt + 1} of ${max}`);
+          const aborted = await this.delayWithAbort(IgnitionTracker.RETRY_DELAY_MS);
+          if (aborted) {
+            this.log.info('[ignite] Retry wait interrupted by user request — aborting sequence');
+            return;
+          }
+        }
+      }
+      this.log.error(
+        `[ignite] All ${max} attempts failed (no hard lockout but pilot never caught). ` +
+        'Likely needs manual intervention: check gas pressure, pilot orifice, thermopile, or spark electrode.',
+      );
+      this.emit('lockout', true);
+    } finally {
+      this.igniting = false;
+    }
+  }
+
+  /**
+   * Poll status during an Ignite attempt and decide its outcome.
+   *
+   * Returns:
+   *  - `'success'`: `guardFlameOn` came up — pilot caught.
+   *  - `'soft-fail'`: `igniting` cleared back to 0 but no flame. Receiver
+   *    gave up cleanly. Worth retrying.
+   *  - `'hard-fail'`: `IGNITION_TIMEOUT_MS` elapsed with `igniting` still
+   *    set. Receiver is locked out; only manual reset clears this.
+   */
+  private async waitForIgnitionOutcome(attempt: number, max: number): Promise<'success' | 'soft-fail' | 'hard-fail'> {
+    const start = Date.now();
+    const timeoutMs = IgnitionTracker.IGNITION_TIMEOUT_MS;
+    while (Date.now() - start < timeoutMs) {
+      await this.delay(FireplaceController.IGNITE_POLL_INTERVAL_MS);
+      // Request a fresh status reading — the regular subscription is paused
+      // during a request() flow and we need timely data here.
+      try {
+        this.sendCommand('303303');
+      } catch {
+        this.log.debug('[ignite] Status request during ignite wait failed (will retry)');
+      }
+      await this.delay(500);
+      const s = this.lastStatus;
+      if (!s) continue;
+      if (s.guardFlameOn) {
+        return 'success';
+      }
+      if (!s.igniting) {
+        // Receiver cleared the igniting bit but never confirmed flame.
+        // Classic soft failure — the most common cold-start outcome.
+        return 'soft-fail';
+      }
+      this.log.debug(
+        `[ignite] Attempt ${attempt}/${max}: still igniting at ${Math.round((Date.now() - start) / 1000)}s (bits=0x${s.statusBitsHex})`,
+      );
+    }
+    return 'hard-fail';
+  }
+
+  /**
+   * Like `delay()` but bails out early if `ignitionAbortRequested` becomes
+   * true. Returns true if it was interrupted, false on normal completion.
+   */
+  private async delayWithAbort(ms: number): Promise<boolean> {
+    const step = 1000;
+    const end = Date.now() + ms;
+    while (Date.now() < end) {
+      if (this.ignitionAbortRequested) return true;
+      await this.delay(Math.min(step, end - Date.now()));
+    }
+    return false;
   }
 
   private async standBy() {
@@ -272,6 +438,22 @@ export class FireplaceController extends EventEmitter implements IFireplaceContr
   }
 
   async request(request: IRequest): Promise<boolean> {
+    // If the auto-retry ignition loop is active, an Off request should
+    // abort the sequence rather than queueing behind it.
+    if (this.igniting && request.mode === OperationMode.Off) {
+      this.log.info('Off requested while ignition retry sequence is in progress — aborting retries');
+      this.ignitionAbortRequested = true;
+    }
+    // If a prior session ended in a hard lockout, block everything except
+    // an explicit Off (which can't hurt and may help reconcile state).
+    if (this.ignitionTracker.hasRecentHardLockout() && request.mode !== OperationMode.Off) {
+      this.log.warn(
+        'Ignoring request — fireplace is in Mertik GV60 hard-lockout state. ' +
+        'Physical intervention required to clear (cycle gas at the wall, paperclip-reset the WiFi module, ' +
+        'or retry ignition from the handheld). Restart homebridge after recovery.',
+      );
+      return false;
+    }
     let succeeds = true;
     const currentMode = this.lastStatus?.mode || OperationMode.Off;
     this.stopStatusSubscription();

@@ -8,16 +8,65 @@ export class FireplaceStatus {
   public readonly igniting: boolean = false;
   public readonly guardFlameOn: boolean = false;
   public readonly shuttingDown: boolean = false;
+  /** Raw 4-char hex of the status bit field (chars 16-19). Useful for diagnostics. */
+  public readonly statusBitsHex: string = '';
+  /**
+   * Heuristic: a Mertik GV60 ignition lockout looks like `igniting` set with
+   * no `guardFlameOn` and no `shuttingDown`. The valve tried to light, the
+   * thermopile never confirmed flame, and the receiver killed the gas. The
+   * `igniting` bit stays set until a power-cycle or paperclip reset.
+   * Empirically observed at the cabin on 2026-05-16. See PROTOCOL.md in the
+   * `valor-fireplace-cli` repo for the full empirical decode.
+   */
+  public readonly lockoutSuspected: boolean = false;
+  /**
+   * Schedule / timer / remote-program overlay active (status bit 9). Set when
+   * the handheld remote is driving the setpoint from a P1/P2 timer or schedule.
+   */
+  public readonly scheduleActive: boolean = false;
+  /** Decorative light on/off (status bit 13). Independent of brightness. */
+  public readonly lightOn: boolean = false;
+  /**
+   * Decorative light brightness setpoint, 0-255 (chars 20-21). Persists across
+   * light on/off — the controller remembers your last dim level.
+   */
+  public readonly lightBrightness: number = 0;
+  /**
+   * Circulating fan speed, 0-4 (chars 22-23). 0 = off, 1-4 = the four speed
+   * bars exposed by the Valor 10 handheld remote.
+   */
+  public readonly fanSpeed: number = 0;
+  /**
+   * Current main-burner output level, 0-255 (chars 14-15). `0x00` means pilot
+   * only (no main burner flame). `0xFF` means full output (Step11). Uses the
+   * same calibration as the outbound FlameHeight command, but in temperature
+   * or eco mode the firmware may report any intermediate modulated value.
+   */
+  public readonly burnerOutput: number = 0;
+  /**
+   * Pilot lit but main burner off (`guardFlameOn && burnerOutput === 0`).
+   * Not a distinct wire mode — just a state.
+   */
+  public readonly pilotOnly: boolean = false;
 
   constructor(status: string) {
     const modeBits = status.substring(24, 25);
     const statusBits = status.substring(16, 20);
+    this.statusBitsHex = statusBits;
     this.shuttingDown = fromBitStatus(statusBits, 7);
     this.guardFlameOn = fromBitStatus(statusBits, 8);
+    this.scheduleActive = fromBitStatus(statusBits, 9);
     this.igniting = fromBitStatus(statusBits, 11);
+    this.auxOn = fromBitStatus(statusBits, 12);
+    this.lightOn = fromBitStatus(statusBits, 13);
+    this.burnerOutput = parseInt('0x' + status.substring(14, 16));
+    this.lightBrightness = parseInt('0x' + status.substring(20, 22));
+    this.fanSpeed = parseInt('0x' + status.substring(22, 24));
     this.currentTemperature = parseInt('0x' + status.substring(28, 32)) / 10;
     this.targetTemperature = parseInt('0x' + status.substring(32, 36)) / 10;
-    this.auxOn = fromBitStatus(statusBits, 12);
+    this.lockoutSuspected =
+      this.igniting && !this.guardFlameOn && !this.shuttingDown;
+    this.pilotOnly = this.guardFlameOn && this.burnerOutput === 0;
     const endByte = status.substring(status.length - 2);
     let opMode = getOperationMode(modeBits, endByte);
     if (!this.guardFlameOn || this.shuttingDown) {
@@ -32,8 +81,13 @@ export class FireplaceStatus {
           +`target:${this.targetTemperature} `
           +`aux:${this.auxOn} `
           +`current:${this.currentTemperature} `
+          +`burner:${this.burnerOutput} `
+          +`fan:${this.fanSpeed} `
+          +`light:${this.lightOn}/${this.lightBrightness} `
           +`shutdown:${this.shuttingDown} `
-          +`guardOn:${this.guardFlameOn}`;
+          +`guardOn:${this.guardFlameOn} `
+          +`lockout:${this.lockoutSuspected} `
+          +`bits:0x${this.statusBitsHex}`;
   }
 }
 
