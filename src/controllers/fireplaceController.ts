@@ -329,16 +329,37 @@ export class FireplaceController extends EventEmitter implements IFireplaceContr
     }
     this.log.info('GuardFlame Off');
     this.shuttingDown = true;
+    let offSent = false;
     try {
       this.sendCommand('313003');
+      offSent = true;
     } catch {
-      this.log.debug('[shutdown] Initial GuardFlame Off send failed (will retry via poll)');
+      this.log.warn('[shutdown] Initial GuardFlame Off send failed — will retry inside poll loop');
     }
     const start = Date.now();
     const ceilingMs = FireplaceController.SHUTDOWN_CEILING_MS;
     const pollMs = FireplaceController.SHUTDOWN_POLL_INTERVAL_MS;
-    while (Date.now() - start < ceilingMs) {
+    // A single poll iteration consumes up to `pollMs + STATUS_RESPONSE_TIMEOUT_MS`
+    // of wall time. Refuse to start a new iteration unless we have that much
+    // budget remaining — otherwise the stated ceiling is soft by up to 7s
+    // and we'd block HomeKit past what the docstring promises.
+    const stepBudgetMs = pollMs + FireplaceController.STATUS_RESPONSE_TIMEOUT_MS;
+    while (Date.now() - start + stepBudgetMs <= ceilingMs) {
       await this.delay(pollMs);
+      // Keep retrying the actual shutdown command until the socket accepts
+      // it. The receiver is idempotent for repeat GuardFlame Off sends, so
+      // there's no harm in re-sending; the risk we're guarding against is
+      // a destroyed socket on the first send silently leaving the flame on
+      // for the full ceiling window.
+      if (!offSent) {
+        try {
+          this.sendCommand('313003');
+          offSent = true;
+          this.log.info('[shutdown] GuardFlame Off command resent after earlier failure');
+        } catch {
+          this.log.warn('[shutdown] GuardFlame Off send still failing — will retry next tick');
+        }
+      }
       const responsePromise = this.waitForNextStatus(FireplaceController.STATUS_RESPONSE_TIMEOUT_MS);
       try {
         this.sendCommand('303303');
