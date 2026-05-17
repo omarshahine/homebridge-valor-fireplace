@@ -28,6 +28,14 @@ export interface IFireplaceEvents {
   on(event: 'status', listener: (status: FireplaceStatus) => void): this;
   on(event: 'reachable', listener: (reachable: boolean) => void): this;
   on(event: 'lockout', listener: (active: boolean) => void): this;
+  /**
+   * Fired when `guardFlameOff()` hits its ceiling without seeing
+   * `guardFlameOn` clear. The `elapsedMs` argument is the actual wall time
+   * spent waiting. Subscribers (HomeKit fault surface, log audit) can use
+   * this to flag a partial shutdown rather than blindly trusting the
+   * fixed delay that the older implementation used.
+   */
+  on(event: 'shutdownTimeout', listener: (elapsedMs: number) => void): this;
 }
 
 export class FireplaceController extends EventEmitter implements IFireplaceController, IFireplaceEvents {
@@ -60,6 +68,26 @@ export class FireplaceController extends EventEmitter implements IFireplaceContr
    * the igniting=1 → 0 transition quickly.
    */
   private static IGNITE_POLL_INTERVAL_MS = 5_000;
+  /**
+   * How long to wait for a status response after issuing a poll command
+   * inside a transition wait. Must be longer than the normal round-trip
+   * but short enough that a missed response just causes the next poll to
+   * retry. 5s mirrors the CLI's `STATUS_RESPONSE_TIMEOUT`.
+   */
+  private static STATUS_RESPONSE_TIMEOUT_MS = 5_000;
+  /**
+   * Shutdown ceiling. Empirically a real shutdown observed at the cabin
+   * (2026-05-17) took 26s — comfortably under this ceiling, but the
+   * previous 30s blind delay was only 4s of headroom. 45s gives the gas
+   * valve, pilot millivolts decay, and thermopile latch release plenty of
+   * room without leaving HomeKit hanging.
+   */
+  private static SHUTDOWN_CEILING_MS = 45_000;
+  /**
+   * Poll cadence inside the shutdown wait. 2s is fine-grained enough to
+   * catch the `guardFlameOn` clear within ~2s of the actual event.
+   */
+  private static SHUTDOWN_POLL_INTERVAL_MS = 2_000;
 
   constructor(
     public readonly log: Logger,
@@ -231,15 +259,16 @@ export class FireplaceController extends EventEmitter implements IFireplaceContr
     const timeoutMs = IgnitionTracker.IGNITION_TIMEOUT_MS;
     while (Date.now() - start < timeoutMs) {
       await this.delay(FireplaceController.IGNITE_POLL_INTERVAL_MS);
-      // Request a fresh status reading — the regular subscription is paused
-      // during a request() flow and we need timely data here.
+      // Subscribe to the next status event before sending the poll, so we
+      // can't race the response. Replaces a fixed 500ms wait that risked
+      // reading stale `lastStatus` under slow network conditions.
+      const responsePromise = this.waitForNextStatus(FireplaceController.STATUS_RESPONSE_TIMEOUT_MS);
       try {
         this.sendCommand('303303');
       } catch {
         this.log.debug('[ignite] Status request during ignite wait failed (will retry)');
       }
-      await this.delay(500);
-      const s = this.lastStatus;
+      const s = await responsePromise;
       if (!s) continue;
       if (s.guardFlameOn) {
         return 'success';
@@ -249,7 +278,10 @@ export class FireplaceController extends EventEmitter implements IFireplaceContr
         // Classic soft failure — the most common cold-start outcome.
         return 'soft-fail';
       }
-      this.log.debug(
+      // Promote progress ticks to info so the homebridge log shows the
+      // attempt is alive during the 90s ignition window. Otherwise users
+      // see an Ignite send and then silence until the outcome lands.
+      this.log.info(
         `[ignite] Attempt ${attempt}/${max}: still igniting at ${Math.round((Date.now() - start) / 1000)}s (bits=0x${s.statusBitsHex})`,
       );
     }
@@ -277,15 +309,89 @@ export class FireplaceController extends EventEmitter implements IFireplaceContr
     return this.sendCommand(msg);
   }
 
-  private async guardFlameOff() {
+  /**
+   * Send the GuardFlame Off command and wait — by polling status, not a
+   * blind delay — until the receiver confirms `guardFlameOn` is clear.
+   *
+   * Returns `true` on confirmed shutdown, `false` if we hit the
+   * `SHUTDOWN_CEILING_MS` ceiling without confirmation. On timeout,
+   * emits `'shutdownTimeout'` with the elapsed wall time so HomeKit and
+   * log subscribers can react instead of trusting a stale assumption.
+   *
+   * Ported from `valor-fireplace-cli` v1.1.1 (`waitForTransition`). The
+   * older 30s blind delay observed only ~4s of headroom on a real 26s
+   * shutdown — slightly slower cycles would miss without anyone noticing.
+   */
+  private async guardFlameOff(): Promise<boolean> {
     if (this.shuttingDown) {
       this.log.debug('Ignore already shutting down!');
-      return;
+      return true;
     }
     this.log.info('GuardFlame Off');
     this.shuttingDown = true;
-    this.sendCommand('313003');
-    await this.delay(30_000);
+    try {
+      this.sendCommand('313003');
+    } catch {
+      this.log.debug('[shutdown] Initial GuardFlame Off send failed (will retry via poll)');
+    }
+    const start = Date.now();
+    const ceilingMs = FireplaceController.SHUTDOWN_CEILING_MS;
+    const pollMs = FireplaceController.SHUTDOWN_POLL_INTERVAL_MS;
+    while (Date.now() - start < ceilingMs) {
+      await this.delay(pollMs);
+      const responsePromise = this.waitForNextStatus(FireplaceController.STATUS_RESPONSE_TIMEOUT_MS);
+      try {
+        this.sendCommand('303303');
+      } catch {
+        this.log.debug('[shutdown] Status poll send failed (will retry next tick)');
+      }
+      const s = await responsePromise;
+      const elapsed = Math.round((Date.now() - start) / 1000);
+      if (s && !s.guardFlameOn) {
+        this.log.info(`[shutdown] Confirmed off after ${elapsed}s`);
+        return true;
+      }
+      this.log.info(`[shutdown] Waiting for guard flame off at ${elapsed}s`);
+    }
+    const elapsedMs = Date.now() - start;
+    this.log.warn(
+      `[shutdown] Did not confirm off within ${Math.round(ceilingMs / 1000)}s ceiling — ` +
+      'guard flame may still be on. Emitting shutdownTimeout event.',
+    );
+    this.emit('shutdownTimeout', elapsedMs);
+    return false;
+  }
+
+  /**
+   * Wait for the next `status` event with a timeout. Subscribes
+   * synchronously (via `this.once`) before returning, so callers can do
+   *
+   *   const responsePromise = this.waitForNextStatus(timeoutMs);
+   *   this.sendCommand('303303');
+   *   const s = await responsePromise;
+   *
+   * without racing the response. If no event arrives in `timeoutMs`,
+   * resolves with the current `lastStatus` (which may be stale or
+   * undefined) — the caller decides what to do with stale data.
+   *
+   * Ported from `valor-fireplace-cli` v1.1.0 — replaces a fixed 500ms
+   * delay that risked reading stale `lastStatus` under slow network
+   * conditions.
+   */
+  private waitForNextStatus(timeoutMs: number): Promise<FireplaceStatus | undefined> {
+    return new Promise((resolve) => {
+      let resolved = false;
+      const finish = (s: FireplaceStatus | undefined) => {
+        if (resolved) return;
+        resolved = true;
+        clearTimeout(timer);
+        this.removeListener('status', handler);
+        resolve(s);
+      };
+      const handler = (s: FireplaceStatus) => finish(s);
+      const timer = setTimeout(() => finish(this.lastStatus), timeoutMs);
+      this.once('status', handler);
+    });
   }
 
   private setEcoMode(){
