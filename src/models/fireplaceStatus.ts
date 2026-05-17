@@ -49,6 +49,18 @@ export class FireplaceStatus {
    */
   public readonly pilotOnly: boolean = false;
 
+  /**
+   * Display-gated burner output: returns 0 unless the guard flame is on.
+   * Firmware does not clear chars 14-15 on shutdown — they linger at the
+   * last in-flight value (e.g. `0xE7` for Step9), so the raw `burnerOutput`
+   * would falsely show "91%" while the pilot is dead. Use this for any
+   * log line or HomeKit characteristic that surfaces burner output to a
+   * human; use the raw `burnerOutput` only for diagnostic dumps.
+   */
+  public get displayBurnerOutput(): number {
+    return this.guardFlameOn ? this.burnerOutput : 0;
+  }
+
   constructor(status: string) {
     const modeBits = status.substring(24, 25);
     const statusBits = status.substring(16, 20);
@@ -81,7 +93,7 @@ export class FireplaceStatus {
           +`target:${this.targetTemperature} `
           +`aux:${this.auxOn} `
           +`current:${this.currentTemperature} `
-          +`burner:${this.burnerOutput} `
+          +`burner:${this.displayBurnerOutput} `
           +`fan:${this.fanSpeed} `
           +`light:${this.lightOn}/${this.lightBrightness} `
           +`shutdown:${this.shuttingDown} `
