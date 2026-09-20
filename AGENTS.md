@@ -112,7 +112,7 @@ Durable memory promoted from `~/.claude/projects/-Users-omarshahine-GitHub-homeb
 - Create GitHub release with `gh release create v<version>` for visibility
 
 ## .npmignore
-- Must exclude `.claude/`, `.cursor/`, and `CLAUDE.md` (case-sensitive)
+- Must exclude `.claude/`, `.cursor/`, and `AGENTS.md` (case-sensitive)
 - Fixed in v2.0.3 — was previously leaking `.claude/settings.local.json` and `.cursor/BUGBOT.md`
 
 ## Version History
