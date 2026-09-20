@@ -16,7 +16,7 @@ images/
 
 # Documentation (README included automatically)
 DEPLOYMENT.md
-CLAUDE.md
+AGENTS.md
 
 # Logs
 *.log
